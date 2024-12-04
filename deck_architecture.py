@@ -11,10 +11,11 @@ class Card:
     
     def __init__(self,rank,suit):
         """
-        Initialises a card with a given rank and suit
+        Initialises a card with a given rank and suit and a status of either revealed or not
         """
         self.rank = rank
         self.suit = suit
+        self.revealed = True #Initialise as not revealed
     
     def value(self):
         """
@@ -28,12 +29,13 @@ class Card:
             return 11 #11 as standard, will be handled case by case in 'Hand' class.
         else:
             raise ValueError(f"Unexpected card rank: {self.rank}")
-        
-    def __str__(self):
-        """
-        Prints the card string (e.g. Ace of Spades)
-        """
-        return f"{self.rank} of {self.suit}"
+    
+    def reveal(self):
+        self.revealed = True
+
+    def get_card_name(self):
+        """Returns the card's name as a string, e.g., "spades_ace"."""
+        return f"{self.suit}_{self.rank}"
     
     def get_image(self, card_type="front"):
         """
