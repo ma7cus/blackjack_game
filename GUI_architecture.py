@@ -81,7 +81,7 @@ class CardsWindow:
             if not card.revealed:
                 card_path = CARD_BACK_IMAGE_PATH  # Use the back image for unrevealed cards
             else:
-                card_path = f"{CARD_IMAGES_PATH}{card.get_card_name()}.svg"
+                card_path = f"{CARD_IMAGES_PATH}{card.__str__()}.svg"
 
             # Load the image and create a label widget to display it
             card_image = self.load_card_image(card_path)

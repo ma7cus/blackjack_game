@@ -33,7 +33,7 @@ class Card:
     def reveal(self):
         self.revealed = True
 
-    def get_card_name(self):
+    def __str__(self):
         """Returns the card's name as a string, e.g., "spades_ace"."""
         return f"{self.suit}_{self.rank}"
     
@@ -128,6 +128,18 @@ class Hand:
 
         return total
     
+    def total(self):
+        """
+        Returns the maximum possible total assuming the hand isn't bust.
+        """
+        hard = self.hard_total()
+        soft = self.soft_total()
+
+        if soft <= 21:
+            return soft
+        else:
+            return hard
+    
     def is_soft(self):
         """
         Returns true if the hard and soft totals are not the same (i.e. the hand is 'soft')
@@ -152,6 +164,6 @@ class Hand:
         """
         Returns a string listing the current cards in the hand.
         """
-        return ", ".join(str(card) for card in self.cards)
+        return ", ".join(card.__str__() for card in self.cards)
     
     
