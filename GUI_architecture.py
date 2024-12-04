@@ -7,7 +7,7 @@ from io import BytesIO
 CARD_IMAGES_PATH = r"C:\\Users\\marcu\\OneDrive\\.EDUCATION MARCUS\\Blackjack\\Re-try\\assets\\svg_playing_cards-fronts\\"
 CARD_BACK_IMAGE_PATH = r"C:\\Users\\marcu\\OneDrive\\.EDUCATION MARCUS\\Blackjack\\testing\\assets\\svg_playing_cards-backs\\abstract.svg"
 
-class WindowDisplay:
+class CardsWindow:
     """
     A utility class to create a standalone window to display cards with specified dimensions and coordinates.
     """
@@ -102,37 +102,88 @@ class WindowDisplay:
         self.total_height = total_height
         self.window.geometry(f"{total_width}x{total_height}")
 
+class ControlWindow:
+    """
+    A utility class to create a control window with buttons to manage the game.
+    """
+
+    def __init__(self, root, ui, title, x_position, y_position, width=400, height=400):
+        """
+        Initializes the control window with buttons for gameplay actions.
+        Args:
+            root (Tk object): Root Tkinter window.
+            ui (BlackjackUI): Reference to the Blackjack UI to access game methods.
+        """
+        self.ui = ui
+        self.window = tk.Toplevel(root)
+        self.window.title(title)
+
+        self.width = width
+        self.height = height
+
+        # Set window position and size
+        self.window.geometry(f"{width}x{height}+{x_position}+{y_position}")
+
+        #Add a hit button
+        self.hit_button = tk.Button(self.window, text="Hit", command=self.hit, font=("Arial", 14), width=10, height=2)
+        self.hit_button.place(relx=0.3, rely=0.5, anchor="center")  # Position the hit button more to the left
+
+        #Add a stand button
+        self.stand_button = tk.Button(self.window, text="Stand", command=self.stand, font=("Arial", 14), width=10, height=2)
+        self.stand_button.place(relx=0.7, rely=0.5, anchor="center")  # Position the stand button more to the right
+
+
+    def hit(self):
+        """
+        Command for the 'Hit' button to deal a card to the player.
+        """
+        if not self.ui.game.game_over:
+            self.ui.game.deal_card_to_player()
+            self.ui.game.check_bust()
+            if self.ui.game.game_over:
+                self.disable_buttons()
+
+    def stand(self):
+        """
+        Command for the 'Stand' button to end the player's turn.
+        """
+        if not self.ui.game.game_over:
+            self.ui.game.player_stands()
+            if self.ui.game.game_over:
+                self.disable_buttons()
+
+    def disable_buttons(self):
+        """
+        Disables the Hit and Stand buttons once the game is over.
+        """
+        self.hit_button.config(state=tk.DISABLED)
+        self.stand_button.config(state=tk.DISABLED)
+
 class BlackjackUI:
     """
     Main UI class to create and manage the card display windows for the dealer and player.
     """
 
-    def __init__(self):
+    def __init__(self,game):
         # Create root window and hide it since we only need child windows
         self.root = tk.Tk()
         self.root.withdraw()
 
-        # Calculate central point on the screen for the window (1/2 in both directions used but could be anywhere)
-        self.x_center = self.root.winfo_screenwidth() // 2
-        self.y_center = self.root.winfo_screenheight() // 2
+        self.game = game
+
+        # Calculate central point on the screen for the cards (1/2 in both directions used but could be anywhere)
+        self.x_center_cards = self.root.winfo_screenwidth() // 2
+        self.y_center_cards = self.root.winfo_screenheight() // 2
         self.window_padding = 100 #This is the gap between the two hand windows
 
         # Create separate windows for the dealer's hand and player's hand
-        self.dealer_display = WindowDisplay(self.root, "Dealer's Hand", 0, 0)
-        self.player_display = WindowDisplay(self.root, "Player's Hand", 0, 0)
+        self.dealer_display = CardsWindow(self.root, "Dealer's Hand", 0, 0)
+        self.player_display = CardsWindow(self.root, "Player's Hand", 0, 0)
 
-        # Set initial window dimensions and center them on the screen
-        self.update_dimensions()
+        self.x_center_controls = self.root.winfo_screenwidth() // 4
+        self.y_center_controls = self.root.winfo_screenheight() // 2
+        self.control_window = ControlWindow(self.root, self,"Game Controls",0,0)
 
-    def update_dimensions(self):
-        """
-        Ensures the dealer and player windows have correct initial dimensions for proper positioning.
-        """
-        # Ensure each window has default dimensions if they are not set
-        self.dealer_display.total_width = self.dealer_display.total_width or 800
-        self.dealer_display.total_height = self.dealer_display.total_height or 400
-        self.player_display.total_width = self.player_display.total_width or 800
-        self.player_display.total_height = self.player_display.total_height or 400
         self.center_windows()
 
     def center_windows(self):
@@ -141,15 +192,20 @@ class BlackjackUI:
         The two hands + padding will be centred on the centre point defined earlier.
         """
         # Calculate positions for centering dealer and player windows with padding on the centre point
-        y_d = self.y_center - (self.dealer_display.total_height + self.window_padding + self.player_display.total_height) // 2
-        x_d = self.x_center - self.dealer_display.total_width // 2
+        y_d = self.y_center_cards - (self.dealer_display.total_height + self.window_padding + self.player_display.total_height) // 2
+        x_d = self.x_center_cards - self.dealer_display.total_width // 2
 
-        y_p = self.y_center + (self.dealer_display.total_height + self.window_padding - self.player_display.total_height) // 2
-        x_p = self.x_center - self.player_display.total_width // 2
+        y_p = self.y_center_cards + (self.dealer_display.total_height + self.window_padding - self.player_display.total_height) // 2
+        x_p = self.x_center_cards - self.player_display.total_width // 2
 
         # Set the position and dimensions for dealer and player windows
         self.dealer_display.window.geometry(f"{self.dealer_display.total_width}x{self.dealer_display.total_height}+{x_d}+{y_d}")
         self.player_display.window.geometry(f"{self.player_display.total_width}x{self.player_display.total_height}+{x_p}+{y_p}")
+
+        x_c = self.x_center_controls - self.control_window.width // 2
+        y_c = self.y_center_cards - (self.dealer_display.total_height + self.window_padding + self.control_window.height) // 2
+        #y_c = self.y_center_controls - self.control_window.height // 2
+        self.control_window.window.geometry(f"{self.control_window.width}x{self.control_window.height}+{x_c}+{y_c}")
 
     def update_dealer(self, cards):
         """
@@ -158,7 +214,7 @@ class BlackjackUI:
             cards: Set of cards for the dealer's hand.
         """
         self.dealer_display.display_cards(cards)
-        self.update_dimensions()  
+        self.center_windows()  
 
     def update_player(self, cards):
         """
@@ -167,7 +223,7 @@ class BlackjackUI:
             cards: Set of cards for the player's hand.
         """
         self.player_display.display_cards(cards)
-        self.update_dimensions() 
+        self.center_windows() 
 
     def mainloop(self):
         """
