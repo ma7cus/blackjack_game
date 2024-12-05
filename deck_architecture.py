@@ -15,7 +15,7 @@ class Card:
         """
         self.rank = rank
         self.suit = suit
-        self.revealed = True #Initialise as not revealed
+        self.revealed = True #Initialise as revealed
     
     def value(self):
         """
@@ -33,9 +33,22 @@ class Card:
     def reveal(self):
         self.revealed = True
 
-    def __str__(self):
+    def get_filename(self):
         """Returns the card's name as a string, e.g., "spades_ace"."""
         return f"{self.suit}_{self.rank}"
+    
+    def get_cardname(self):
+        """
+        Returns the card's representation for terminal output, using suit symbols.
+        """
+        suit_symbols = {
+            "Hearts": "♥",
+            "Diamonds": "♦",
+            "Clubs": "♣",
+            "Spades": "♠"
+        }
+
+        return f"{self.rank} {suit_symbols.get(self.suit, '?')}"
     
     def get_image(self, card_type="front"):
         """
@@ -61,22 +74,48 @@ class Deck:
     """
     Represents the state of a deck of a given number of shuffled decks of cards
     """
-    def __init__(self,decks = 1):
+    def __init__(self,decks = 6):
         """
         Initialises a deck where every combination of rank and suit of cards is included for as many decks as there are.
         The resultant deck is then shuffled.
         """
+        self.new_deck(decks = decks)
+
+    def new_deck(self, decks = 1):
+        print("New deck shuffled")
         self.suits = ["Hearts","Diamonds","Clubs","Spades"]
         self.ranks = [str(i) for i in range(2,11)] + ["Jack","Queen","King","Ace"]
         self.cards = [Card(rank, suit) for suit in self.suits for rank in self.ranks] * decks
+
+        for card in self.cards:
+            card.revealed = True
+
         random.shuffle(self.cards)
+        self.dealt_cards = 0
+        self.should_shuffle_after_hand = False
     
     def deal_card(self):
         """
         Pulls a card from somewhere in the deck, removing it from the deck in the process.
         """
-        return self.cards.pop()
+        if not self.cards:
+            raise ValueError("No cards left in the deck")
+        
+        if self.dealt_cards >= 0.75 * len(self.cards):
+            print("Cut card reached! Shuffle after this hand.")
+            self.should_shuffle_after_hand = True
+        
+        self.dealt_cards += 1
+        
+        return self.cards.pop()    
     
+    def should_shuffle(self):
+        """
+        Checks if the deck should be shuffled based on penetration level.
+        Returns:
+            bool: True if the deck should be shuffled, False otherwise.
+        """
+        return self.should_shuffle_after_hand
 
 class Hand:
     """
@@ -88,6 +127,12 @@ class Hand:
         """
         self.cards = []
     
+    def reset(self):
+        """Resets the current hand to empty and ensures no card has unintended hidden status."""
+        for card in self.cards:
+            card.revealed = True
+        self.cards.clear()
+        
     def add_card(self,card):
         """
         Adds a given card to the current hand
@@ -160,10 +205,19 @@ class Hand:
         """
         return len(self.cards) == 2 and self.cards[0].rank == self.cards[1].rank
     
-    def __str__(self):
+    def get_deckstring(self, reveal_cards=True):
         """
         Returns a string listing the current cards in the hand.
+        Args:
+            reveal_cards (bool): If False, hidden cards will be represented as '-'.
         """
-        return ", ".join(card.__str__() for card in self.cards)
+        card_strings = []
+        for card in self.cards:
+            if card.revealed or reveal_cards:
+                card_strings.append(card.get_cardname())
+            else:
+                card_strings.append("-")
+
+        return ", ".join(card_strings)
     
     
