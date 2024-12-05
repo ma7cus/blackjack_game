@@ -132,7 +132,7 @@ class Hand:
         for card in self.cards:
             card.revealed = True
         self.cards.clear()
-        
+
     def add_card(self,card):
         """
         Adds a given card to the current hand
@@ -204,6 +204,29 @@ class Hand:
         (Used for splitting logic in gameplay)
         """
         return len(self.cards) == 2 and self.cards[0].rank == self.cards[1].rank
+    
+    def display_score_string(self, reveal_cards=True, standing=False):
+        """
+        Returns the score string for the hand.
+        Args:
+            reveal_cards (bool): Whether to reveal the current score or not.
+            standing (bool): Whether the player or dealer is standing.
+        Returns:
+            str: The formatted score string.
+        """
+        if not reveal_cards:
+            return "Hidden"
+
+        if standing and self.is_soft() and not self.is_bust():
+            # If standing and the hand is soft, return only the soft total
+            return f"{self.soft_total()}"
+    
+        hard_total = self.hard_total()
+        if self.is_soft():
+            soft_total = self.soft_total()
+            return f"{hard_total}/{soft_total}"
+        else:
+            return f"{hard_total}"
     
     def get_deckstring(self, reveal_cards=True):
         """

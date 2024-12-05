@@ -17,34 +17,55 @@ class Blackjack_Hand:
         self.player_turn_over = False
         self.hand_over = False
 
+    def update_hand_values_in_ui(self):
+        """ 
+        Updates the player and dealer hand values in the UI.
+        """
+        # Determine if player is standing based on player_turn_over flag
+        player_standing = self.player_turn_over
+
+        # Player's hand value
+        player_total_str = self.player_hand.display_score_string(reveal_cards=True, standing=player_standing)
+
+        # Determine if dealer is standing based on hand_over and card reveal status
+        dealer_revealed = all(card.revealed for card in self.dealer_hand.cards)
+        dealer_standing = self.hand_over and dealer_revealed
+        dealer_total_str = self.dealer_hand.display_score_string(reveal_cards=dealer_revealed, standing=dealer_standing)
+
+        # Update the UI with the formatted totals
+        self.ui.update_hand_values(player_total_str, dealer_total_str, dealer_revealed)
+
+
+
     def update_ui(self):
         # Update the UI to reflect the current hands
         self.ui.update_player(self.player_hand.cards)
         self.ui.update_dealer(self.dealer_hand.cards)
 
-    def display_hand(self, hand, owner):
+        # Also update the hand values in the UI
+        self.update_hand_values_in_ui()  
+
+
+    def display_hand(self, hand, owner, standing=False):
         """
         Display the hand of a player or dealer in the terminal.
+        Args:
+            hand (Hand): The player's or dealer's hand.
+            owner (str): The owner of the hand (Player or Dealer).
+            standing (bool): Whether the player or dealer is standing.
         """
         if len(hand.cards) < 2:
             return
-        
-        if owner == "Player" or all(card.revealed for card in hand.cards):
-            cards_str = hand.get_deckstring()
-            hard_total = hand.hard_total()
 
-            if hand.is_soft():
-                soft_total = hand.soft_total()
-                print(f"{owner}'s Hand: [{cards_str}] - Total: {hard_total}/{soft_total}")
-            else:
-                print(f"{owner}'s Hand: [{cards_str}] - Total: {hard_total}")
+        # Determine if we should reveal the cards or keep them hidden
+        reveal_cards = (owner == "Player" or all(card.revealed for card in hand.cards))
+    
+        # Generate card strings and totals based on standing status
+        cards_str = hand.get_deckstring(reveal_cards=reveal_cards)
+        total_str = hand.display_score_string(reveal_cards=reveal_cards, standing=standing)
 
-        else:
-            cards_str = hand.get_deckstring(reveal_cards = False)
-            hard_total = "Hidden"
-            print(f"{owner}'s Hand: [{cards_str}] - Total: {hard_total}")
+        print(f"{owner}'s Hand: [{cards_str}] - Total: {total_str}")
 
-        
 
     def deal_card_to_player(self,print_to_terminal=True):
         
@@ -100,8 +121,11 @@ class Blackjack_Hand:
         Handle the player's decision to stand.
         """        
         print(f"Player stands on {self.player_hand.total()}")
-
         self.player_turn_over = True
+
+        self.display_hand(self.player_hand, "Player", standing=True)
+        self.update_ui() 
+
         self.dealer_play()
         
 
@@ -165,6 +189,7 @@ class Blackjack_Hand:
         elif hard_total > 17 or (hard_total == 17 and not self.dealer_hand.is_soft()):
             print(f"Dealer stands on {hard_total}")
             self.hand_over = True
+            self.display_hand(self.dealer_hand, "Dealer", standing=True)
             self.determine_winner()
             self.update_ui()
             return
@@ -184,13 +209,6 @@ class Blackjack_Hand:
     
     def is_hand_over(self):
         return self.hand_over
-    
-    def reset_hand(self):
-        # Reset player and dealer hands
-        self.dealer_hand.cards.clear()
-        self.player_hand.cards.clear()
-        self.player_turn_over = False
-        self.hand_over = False
 
     def play_hand(self):
         # Play a new hand

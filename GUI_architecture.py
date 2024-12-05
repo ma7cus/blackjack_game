@@ -124,6 +124,13 @@ class ControlWindow:
         # Set window position and size
         self.window.geometry(f"{width}x{height}+{x_position}+{y_position}")
 
+        # Add labels to display player and dealer hand totals
+        self.player_hand_value_label = tk.Label(self.window, text="Player Score: 0", font=("Arial", 14))
+        self.player_hand_value_label.place(relx=0.5, rely=0.2, anchor="center")
+
+        self.dealer_hand_value_label = tk.Label(self.window, text="Dealer Score: Hidden", font=("Arial", 14))
+        self.dealer_hand_value_label.place(relx=0.5, rely=0.3, anchor="center")
+
         #Add a hit button
         self.hit_button = tk.Button(self.window, text="Hit", command=self.hit, font=("Arial", 14), width=10, height=2)
         self.hit_button.place(relx=0.3, rely=0.5, anchor="center")  # Position the hit button more to the left
@@ -148,6 +155,21 @@ class ControlWindow:
             self.ui.game.current_hand.check_bust()
             if self.ui.game.current_hand.player_turn_over:
                 self.disable_buttons()
+
+    def update_hand_values(self, player_total, dealer_total, dealer_revealed):
+        """
+        Updates the displayed values of the player and dealer hands.
+        Args:
+            player_total (int): The current total value of the player's hand.
+            dealer_total (int): The current total value of the dealer's hand.
+            dealer_revealed (bool): Whether the dealer's total should be revealed.
+        """
+        self.player_hand_value_label.config(text=f"Player Hand: {player_total}")
+
+        if dealer_revealed:
+            self.dealer_hand_value_label.config(text=f"Dealer Hand: {dealer_total}")
+        else:
+            self.dealer_hand_value_label.config(text=f"Dealer Hand: Hidden")
 
     def stand(self):
         """
@@ -246,6 +268,16 @@ class BlackjackUI:
         """
         self.player_display.display_cards(cards)
         self.center_windows() 
+    
+    def update_hand_values(self, player_total, dealer_total, dealer_revealed):
+        """
+        Updates the hand values in the control window.
+        Args:
+            player_total (int): The player's current hand value.
+            dealer_total (int): The dealer's current hand value.
+            dealer_revealed (bool): Whether the dealer's total should be revealed.
+        """
+        self.control_window.update_hand_values(player_total, dealer_total, dealer_revealed)
 
     def mainloop(self):
         """
