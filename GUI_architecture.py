@@ -139,15 +139,16 @@ class PlayerHandWindow(CardsWindowBase):
         self.ui = ui
 
     def hit(self):
-        if self.ui:
-            self.ui.game.current_hand.deal_card_to_player()
-            self.ui.game.current_hand.check_bust()
-            if self.ui.game.current_hand.player_turn_over:
+        if self.ui is not None and self.hand_index is not None:
+            # Pass the correct hand index to deal_card_to_player
+            self.ui.game.current_hand.deal_card_to_player(self.hand_index)
+            self.ui.game.current_hand.check_bust(self.hand_index)
+            if all(self.ui.game.current_hand.player_turn_over):
                 self.disable_buttons()
 
     def stand(self):
-        if self.ui:
-            self.ui.game.current_hand.player_stands()
+        if self.ui is not None and self.hand_index is not None:
+            self.ui.game.current_hand.player_stands(self.hand_index)
             if self.ui.game.current_hand.hand_over:
                 self.disable_buttons()
     
@@ -165,6 +166,15 @@ class PlayerHandWindow(CardsWindowBase):
             self.dealer_hand_value_label.config(text=f"Dealer Hand: {dealer_total}")
         else:
             self.dealer_hand_value_label.config(text=f"Dealer Hand: Hidden")
+    
+    def update_hand_value(self, player_total_str):
+        """
+        Updates the player's hand value label.
+        Args:
+            player_total_str (str): The current total value of the player's hand.
+        """
+        self.player_hand_value_label.config(text=f"Player Hand: {player_total_str}")
+
 
     def disable_buttons(self):
         self.hit_button.config(state=tk.DISABLED)
@@ -234,7 +244,7 @@ class BlackjackUI:
     Main UI class to create and manage the card display windows for the dealer and player.
     """
 
-    def __init__(self,game):
+    def __init__(self, game):
         # Create root window and hide it since we only need child windows
         self.root = tk.Tk()
         self.root.withdraw()
@@ -244,42 +254,58 @@ class BlackjackUI:
         # Calculate central point on the screen for the cards (1/2 in both directions used but could be anywhere)
         self.x_center_cards = self.root.winfo_screenwidth() // 2
         self.y_center_cards = self.root.winfo_screenheight() // 2
-        self.window_padding = 100 #This is the gap between the two hand windows
+        self.window_padding = 100 # This is the gap between the two hand windows
 
         # Create separate windows for the dealer's hand and player's hand
         self.dealer_display = DealerHandWindow(self.root, "Dealer's Hand", 0, 0)
-        self.player_display = PlayerHandWindow(self.root, "Player's Hand", 0, 0)
+        
+        # Use a list for player displays to handle split hands
+        self.player_displays = []
+        player_window = PlayerHandWindow(self.root, "Player's Hand", 0, 0)
+        player_window.set_game_reference(self)
+        self.player_displays.append(player_window)
 
-        # Set the game reference for player actions
-        self.player_display.set_game_reference(self)
+        # Add control window for game management
+        self.control_window = ControlWindow(self.root, self, "Game Controls", 0, 0)
 
-
-        self.x_center_controls = self.root.winfo_screenwidth() // 4
-        self.y_center_controls = self.root.winfo_screenheight() // 2
-        self.control_window = ControlWindow(self.root, self,"Game Controls",0,0)
-
+        # Position the windows
         self.center_windows()
+
+    def add_split_player_window(self, hand):
+        """Add a new window for the split player hand."""
+        split_player_window = PlayerHandWindow(self.root, "Split Player's Hand", 0, 0)
+        split_player_window.set_game_reference(self)
+        split_player_window.display_cards(hand.cards)
+        self.player_displays.append(split_player_window)
+        self.center_windows()
+
 
     def center_windows(self):
         """
         Centers the dealer and player windows based on the current screen dimensions.
         The two hands + padding will be centred on the centre point defined earlier.
         """
-        # Calculate positions for centering dealer and player windows with padding on the centre point
-        y_d = self.y_center_cards - (self.dealer_display.total_height + self.window_padding + self.player_display.total_height) // 2
+        # Calculate positions for centering dealer window
+        y_d = self.y_center_cards - (self.dealer_display.total_height + self.window_padding) // 2
         x_d = self.x_center_cards - self.dealer_display.total_width // 2
 
-        y_p = self.y_center_cards + (self.dealer_display.total_height + self.window_padding - self.player_display.total_height) // 2
-        x_p = self.x_center_cards - self.player_display.total_width // 2
-
-        # Set the position and dimensions for dealer and player windows
+        # Set the position and dimensions for dealer window
         self.dealer_display.window.geometry(f"{self.dealer_display.total_width}x{self.dealer_display.total_height}+{x_d}+{y_d}")
-        self.player_display.window.geometry(f"{self.player_display.total_width}x{self.player_display.total_height}+{x_p}+{y_p}")
 
-        x_c = min(self.x_center_controls - self.control_window.width // 2, x_d-self.window_padding-self.control_window.width)
+        # Position each player window individually
+        for idx, player_display in enumerate(self.player_displays):
+            y_p = y_d + (idx * (self.dealer_display.total_height + self.window_padding))
+            x_p = x_d  # Keep player windows aligned horizontally with the dealer
+
+            # Set the position and dimensions for player windows
+            player_display.window.geometry(f"{player_display.total_width}x{player_display.total_height}+{x_p}+{y_p}")
+
+        # Set the control window position based on dealer window and padding
+        x_c = min(self.x_center_cards - self.control_window.width // 2, x_d - self.window_padding - self.control_window.width)
         y_c = self.y_center_cards - (self.dealer_display.total_height + self.window_padding + self.control_window.height) // 2
-        #y_c = self.y_center_controls - self.control_window.height // 2
+
         self.control_window.window.geometry(f"{self.control_window.width}x{self.control_window.height}+{x_c}+{y_c}")
+
 
     def update_dealer(self, cards):
         """
@@ -291,15 +317,40 @@ class BlackjackUI:
 
         self.center_windows()  
 
-    def update_player(self, cards):
+    def update_player(self, cards, hand_index=0):
         """
         Updates the player's card display window.
         Args:
             cards: Set of cards for the player's hand.
+            hand_index: Index of the player hand to be updated.
         """
-        self.player_display.display_cards(cards)
-        self.center_windows() 
-    
+        if hand_index < len(self.player_displays):
+            self.player_displays[hand_index].display_cards(cards)
+        self.center_windows()
+
+    def update_player_hand_value(self, player_total_str, hand_index=0):
+        """
+        Update the displayed value of the player's hand.
+        Args:
+            player_total_str: The current total value of the player's hand.
+            hand_index: Index of the player hand to be updated.
+        """
+        if hand_index < len(self.player_displays):
+            self.player_displays[hand_index].update_hand_value(player_total_str)
+
+    def update_dealer_hand_value(self, dealer_total_str, dealer_revealed):
+        """
+        Updates the dealer's hand value in the dealer display window.
+        Args:
+            dealer_total_str (str): The current total value of the dealer's hand.
+            dealer_revealed (bool): Whether the dealer's total should be revealed.
+        """
+        if dealer_revealed:
+            self.dealer_display.window.title(f"Dealer's Hand: {dealer_total_str}")
+        else:
+            self.dealer_display.window.title("Dealer's Hand: Hidden")
+
+
     def update_hand_values(self, player_total, dealer_total, dealer_revealed):
         """
         Updates the hand values in the control window.
@@ -309,6 +360,25 @@ class BlackjackUI:
             dealer_revealed (bool): Whether the dealer's total should be revealed.
         """
         self.player_display.update_hand_values(player_total, dealer_total, dealer_revealed)
+
+    def add_split_player_window(self, hand):
+        """Add a new window for the split player hand."""
+        split_player_window = PlayerHandWindow(self.root, "Split Player's Hand", 0, 0)
+        split_player_window.set_game_reference(self)
+        split_player_window.display_cards(hand.cards)
+        self.player_displays.append(split_player_window)
+        self.center_windows()
+
+    def update_player(self, cards, hand_index=0):
+        """
+        Updates the player's card display window.
+        Args:
+            cards: Set of cards for the player's hand.
+            hand_index: Index of the player hand to be updated.
+        """
+        if hand_index < len(self.player_displays):
+            self.player_displays[hand_index].display_cards(cards)
+        self.center_windows()
 
     def mainloop(self):
         """
