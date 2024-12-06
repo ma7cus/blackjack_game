@@ -115,6 +115,8 @@ class Blackjack_Hand:
             else:
                 self.deal_card_to_dealer(revealed=True,print_to_terminal=False)
         
+        self.ui.player_display.enable_buttons()
+        
 
     def player_stands(self):
         """
