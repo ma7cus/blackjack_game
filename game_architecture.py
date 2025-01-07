@@ -5,48 +5,56 @@ class Blackjack_Hand:
     def __init__(self,deck,ui):
         self.deck = deck
         self.ui = ui
-        self.dealer_hand = Hand()  # Hand object to store dealer's cards
-        self.player_hand = Hand()  # Hand object to store player's cards
-        self.player_turn_over = False  # Track if the player's turn is over
-        self.hand_over = False
+        self.dealer_card_set = Hand()  # Hand object to store dealer's cards
+        self.player_card_sets = [] #Start with an empty set of hands
+        self.player_card_sets.append(Hand())  # Initialise player set of hands with an initial hand object
+        self.player_hand_turn_over = [] #Track which of the player's hands' turns are over
+        self.player_hand_turn_over.append(False) #Set the initial player hand to not be over in its turn on initialisation
+        self.player_turn_over = False  # Track if the player's turn is over for all hands
+        self.round_over = False #Track if the player and dealer turns are both over
 
     def reset_hand(self):
         # Reset player and dealer hands using the reset method in Hand
-        self.dealer_hand.reset()
-        self.player_hand.reset()
+        self.dealer_card_set.reset() #Reset the dealer's hand
+        self.player_card_sets = [Hand()] #Reset any number of hands back to a standard 1 new hand object
+        self.player_hand_turn_over = []
+        self.player_hand_turn_over.append(False)
         self.player_turn_over = False
-        self.hand_over = False
+        self.round_over = False
 
-    def update_hand_values_in_ui(self):
+    def update_card_set_values_in_ui(self):
         """ 
         Updates the player and dealer hand values in the UI.
         """
         # Determine if player is standing based on player_turn_over flag
         player_standing = self.player_turn_over
 
-        # Player's hand value
-        player_total_str = self.player_hand.display_score_string(reveal_cards=True, standing=player_standing)
+        # Player's card sets values
+        player_totals_str_set = []
+        for card_set in self.player_card_sets:
+            score_string = card_set.display_score_string(reveal_cards=True, standing=self.player_turn_over)
+            player_totals_str_set.append(score_string)
 
-        # Determine if dealer is standing based on hand_over and card reveal status
-        dealer_revealed = all(card.revealed for card in self.dealer_hand.cards)
-        dealer_standing = self.hand_over and dealer_revealed
-        dealer_total_str = self.dealer_hand.display_score_string(reveal_cards=dealer_revealed, standing=dealer_standing)
+        # Determine if dealer is standing based on round_over and card reveal status
+        dealer_revealed = all(card.revealed for card in self.dealer_card_set.cards)
+        dealer_standing = self.round_over and dealer_revealed
+        dealer_total_str = self.dealer_card_set.display_score_string(reveal_cards=dealer_revealed, standing=dealer_standing)
 
         # Update the UI with the formatted totals
-        self.ui.update_hand_values(player_total_str, dealer_total_str, dealer_revealed)
-
-
+        self.ui.update_hand_values(player_totals_str_set, dealer_total_str, dealer_revealed)
 
     def update_ui(self):
         # Update the UI to reflect the current hands
-        self.ui.update_player(self.player_hand.cards)
-        self.ui.update_dealer(self.dealer_hand.cards)
+        for card_set in self.player_card_sets:
+            self.ui.update_player(card_set.cards)
+
+        self.ui.update_dealer(self.dealer_card_set.cards)
 
         # Also update the hand values in the UI
-        self.update_hand_values_in_ui()  
+        self.update_card_set_values_in_ui()  
 
 
-    def display_hand(self, hand, owner, standing=False):
+    def display_card_set(self, card_set, owner, standing=False):
         """
         Display the hand of a player or dealer in the terminal.
         Args:
@@ -54,20 +62,26 @@ class Blackjack_Hand:
             owner (str): The owner of the hand (Player or Dealer).
             standing (bool): Whether the player or dealer is standing.
         """
-        if len(hand.cards) < 2:
+        if len(card_set.cards) < 2:
             return
 
         # Determine if we should reveal the cards or keep them hidden
-        reveal_cards = (owner == "Player" or all(card.revealed for card in hand.cards))
+        reveal_cards = ("Player" in owner or all(card.revealed for card in card_set.cards))
     
         # Generate card strings and totals based on standing status
-        cards_str = hand.get_deckstring(reveal_cards=reveal_cards)
-        total_str = hand.display_score_string(reveal_cards=reveal_cards, standing=standing)
+        cards_str = card_set.get_deckstring(reveal_cards=reveal_cards)
+        total_str = card_set.display_score_string(reveal_cards=reveal_cards, standing=standing)
 
         print(f"{owner}'s Hand: [{cards_str}] - Total: {total_str}")
 
+    def display_card_sets(self):
+        for i, hand in enumerate(self.player_card_sets):
+                self.display_card_set(hand,f"Player Hand {i+1}")
+            
+        self.display_card_set(self.dealer_card_set, "Dealer")
+        print(" ")
 
-    def deal_card_to_player(self,print_to_terminal=True):
+    def deal_card_to_player(self,hand_index = 0, print_to_terminal=True):
         
         if self.player_turn_over:
             raise ValueError("Player trying to be dealt to after turn end")
@@ -75,19 +89,17 @@ class Blackjack_Hand:
         # Deal a new card to the player, always revealed
         new_card = self.deck.deal_card()
         new_card.revealed = True
-        self.player_hand.add_card(new_card)
+        self.player_card_sets[hand_index].add_card(new_card)
 
         if print_to_terminal:
-            self.display_hand(self.player_hand, "Player")
-            self.display_hand(self.dealer_hand, "Dealer")
-            print(" ")
+            self.display_card_sets()
 
         self.update_ui()
         
 
     def deal_card_to_dealer(self,revealed=True,print_to_terminal=True):
         
-        if self.hand_over:
+        if self.round_over:
             raise ValueError("Dealer trying to be dealt to after hand end")
         
         new_card = self.deck.deal_card()
@@ -97,12 +109,10 @@ class Blackjack_Hand:
         else:
             new_card.revealed = False
 
-        self.dealer_hand.add_card(new_card)
+        self.dealer_card_set.add_card(new_card)
 
         if print_to_terminal:
-            self.display_hand(self.player_hand, "Player")
-            self.display_hand(self.dealer_hand, "Dealer")
-            print(" ")
+            self.display_card_sets()
 
         self.update_ui()
 
@@ -118,28 +128,32 @@ class Blackjack_Hand:
         self.ui.player_display.enable_buttons()
         
 
-    def player_stands(self):
+    def player_stands(self, hand_index = 0):
         """
         Handle the player's decision to stand.
         """        
-        print(f"Player stands on {self.player_hand.total()}")
-        self.player_turn_over = True
-
-        self.display_hand(self.player_hand, "Player", standing=True)
+        print(f"Player stands on hand {hand_index+1} with {self.player_card_sets[hand_index].total()}")
+        self.player_hand_turn_over[hand_index] = True
+        self.display_card_sets()
         self.update_ui() 
 
-        self.dealer_play()
+        if all(self.player_hand_turn_over):
+            self.player_turn_over = True
+            self.dealer_play()
         
 
-    def check_bust(self):
+    def check_bust(self, hand_index = 0):
         """
         Check if the player's hand has gone bust using the existing `is_bust()` method.
         """
-        if self.player_hand.is_bust():
-            print(f"Player busts at {self.player_hand.hard_total()}")
+        if self.player_card_sets[hand_index].is_bust():
+            print(f"Player hand {hand_index + 1} busts at {self.player_card_sets[hand_index].hard_total()}")
             print(" ")
-            self.player_turn_over = True
-            self.dealer_play()
+            self.player_hand_turn_over[hand_index] = True
+            
+            if all(self.player_hand_turn_over):
+                self.player_turn_over = True
+                self.dealer_play()
             
             
     def dealer_play(self):
@@ -149,49 +163,65 @@ class Blackjack_Hand:
         """
         if not self.player_turn_over:
             raise ValueError("Dealer trying to play before player turn end")
-        elif self.hand_over:
+        elif self.round_over:
             raise ValueError("Dealer trying to play after hand end")
             
-        print(f"Dealer's turn begins at {self.dealer_hand.total()}")
+        print(f"Dealer's turn begins at {self.dealer_card_set.total()}")
         print("")
         
         self.reveal_dealer_cards()
         self.dealer_turn_step()
 
     def determine_winner(self):
-        if self.hand_over:
-            if self.player_hand.is_bust():
-                if self.dealer_hand.is_bust():
-                    print(f"Draw: Player busts on {self.player_hand.hard_total()}, Dealer busts on {self.dealer_hand.hard_total()}")
+        """
+        Determine the result for each player hand (win/lose/draw) against the dealer.
+        """
+        if self.round_over:
+            for i, player_hand in enumerate(self.player_card_sets):
+                # Player's hand identifier for output
+                if i==0 and len(self.player_card_sets) == 1:
+                    hand_label = f"Player Hand"
                 else:
-                    print(f"Player loses: Player busts on {self.player_hand.hard_total()}, Dealer stands on {self.dealer_hand.total()}")
-            elif self.dealer_hand.is_bust():
-                print(f"Player wins: Player stands on {self.player_hand.total()}, Dealer busts on {self.dealer_hand.hard_total()}")
-            elif self.player_hand.total() < self.dealer_hand.total():
-                print(f"Player loses: Player stands on {self.player_hand.total()}, Dealer stands on {self.dealer_hand.total()}")
-            elif self.player_hand.total() > self.dealer_hand.total():
-                print(f"Player wins: Player stands on {self.player_hand.total()}, Dealer stands on {self.dealer_hand.total()}")
-            else:
-                print(f"Draw: Player stands on {self.player_hand.total()}, Dealer stands on {self.dealer_hand.total()}")
+                    hand_label = f"Player Hand {i+1}"
+
+                # Check if the player's hand is a bust
+                if player_hand.is_bust():
+                    if self.dealer_card_set.is_bust():
+                        print(f"Draw: {hand_label} busts on {player_hand.hard_total()}, Dealer busts on {self.dealer_card_set.hard_total()}")
+                    else:
+                        print(f"{hand_label} loses: Busts on {player_hand.hard_total()}, Dealer stands on {self.dealer_card_set.total()}")
+                elif self.dealer_card_set.is_bust():
+                    # Dealer busts, player wins
+                    print(f"{hand_label} wins: Stands on {player_hand.total()}, Dealer busts on {self.dealer_card_set.hard_total()}")
+                elif player_hand.total() < self.dealer_card_set.total():
+                    # Dealer has higher total, player loses
+                    print(f"{hand_label} loses: Stands on {player_hand.total()}, Dealer stands on {self.dealer_card_set.total()}")
+                elif player_hand.total() > self.dealer_card_set.total():
+                    # Player has higher total, player wins
+                    print(f"{hand_label} wins: Stands on {player_hand.total()}, Dealer stands on {self.dealer_card_set.total()}")
+                else:
+                    # Totals are equal, it's a draw
+                    print(f"Draw: {hand_label} stands on {player_hand.total()}, Dealer stands on {self.dealer_card_set.total()}")
+
 
     def dealer_turn_step(self):
         """
         Execute one step of the dealer's play sequence.
         """
         # Calculate current dealer's hard total
-        hard_total = self.dealer_hand.hard_total()
+        hard_total = self.dealer_card_set.hard_total()
 
         # Dealer stands if total is > 17 or exactly 17 and not soft
-        if self.dealer_hand.is_bust():
+        if self.dealer_card_set.is_bust():
             print(f"Dealer busts at {hard_total}")
-            self.hand_over = True
+            self.round_over = True
             self.determine_winner()
             self.update_ui()
             return
-        elif hard_total > 17 or (hard_total == 17 and not self.dealer_hand.is_soft()):
+        elif hard_total > 17 or (hard_total == 17 and not self.dealer_card_set.is_soft()):
             print(f"Dealer stands on {hard_total}")
-            self.hand_over = True
-            self.display_hand(self.dealer_hand, "Dealer", standing=True)
+            self.round_over = True
+            self.display_card_set(self.dealer_card_set, "Dealer", standing=True)
             self.determine_winner()
             self.update_ui()
             return
@@ -205,12 +235,12 @@ class Blackjack_Hand:
 
     def reveal_dealer_cards(self):
         # Reveal all dealer cards at the end of the game
-        for card in self.dealer_hand.cards:
+        for card in self.dealer_card_set.cards:
             card.reveal()
         self.update_ui()
     
-    def is_hand_over(self):
-        return self.hand_over
+    def is_round_over(self):
+        return self.round_over
 
     def play_hand(self):
         # Play a new hand
@@ -241,5 +271,4 @@ class Blackjack_Game:
         # Start the first hand
         self.new_hand()
         self.ui.mainloop()
-
 

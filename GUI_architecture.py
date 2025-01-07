@@ -148,7 +148,7 @@ class PlayerHandWindow(CardsWindowBase):
     def stand(self):
         if self.ui:
             self.ui.game.current_hand.player_stands()
-            if self.ui.game.current_hand.hand_over:
+            if self.ui.game.current_hand.round_over:
                 self.disable_buttons()
     
     def update_hand_values(self, player_total, dealer_total, dealer_revealed):
