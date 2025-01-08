@@ -1,6 +1,7 @@
 import random
 from tkinter import PhotoImage
 from cairosvg import svg2png
+from config import CARD_IMAGES_PATH,CARD_BACK_IMAGE_PATH
 
 class Card:
     """
@@ -39,7 +40,7 @@ class Card:
     
     def get_cardname(self):
         """
-        Returns the card's representation for terminal output, using suit symbols.
+        Returns the card's value using suit symbols to print to the terminal
         """
         suit_symbols = {
             "Hearts": "♥",
@@ -52,16 +53,14 @@ class Card:
     
     def get_image(self, card_type="front"):
         """
-        Returns the appropriate image for the card.
-        Args:
-            card_type (str): 'front' for the card face, 'back' for the card back.
-        Returns:
-            PhotoImage: The image to display.
+        Returns the image for a given card.
+        Note that the card image nededs to be found at the paths defined in config 
+        and the front cards need to be formatted with names of format "{suit}_{rank}.svg"
         """
         if card_type == "front":
-            file_path = f"assets/svg_playing_cards-fronts/{self.suit.lower()}_{self.rank.lower()}.svg"
+            file_path = f"{CARD_IMAGES_PATH}{self.suit.lower()}_{self.rank.lower()}.svg" #Pulls the path to the current card's front image
         elif card_type == "back":
-            file_path = "assets/svg_playing_cards-backs/abstract.svg"
+            file_path = CARD_BACK_IMAGE_PATH
         else:
             raise ValueError(f"Invalid card_type: {card_type}")
 
@@ -72,27 +71,30 @@ class Card:
     
 class Deck:
     """
-    Represents the state of a deck of a given number of shuffled decks of cards
+    Represents the state of a set of a given number of shuffled decks of cards
     """
-    def __init__(self,decks = 6):
+    def __init__(self,num_decks = 6):
         """
         Initialises a deck where every combination of rank and suit of cards is included for as many decks as there are.
         The resultant deck is then shuffled.
+        (6 decks is standard for a casino shoe)
         """
-        self.new_deck(decks = decks)
+        self.new_deck(decks = num_decks)
+
+        #Initialise variables to track when to create a new deck
+        self.dealt_cards = 0
+        self.should_shuffle_after_hand = False 
 
     def new_deck(self, decks = 1):
         print("New deck shuffled")
         self.suits = ["Hearts","Diamonds","Clubs","Spades"]
         self.ranks = [str(i) for i in range(2,11)] + ["Jack","Queen","King","Ace"]
-        self.cards = [Card(rank, suit) for suit in self.suits for rank in self.ranks] * decks
+        self.cards = [Card(rank, suit) for suit in self.suits for rank in self.ranks] * decks #Generates all possible cards in the deck
 
         for card in self.cards:
-            card.revealed = True
+            card.revealed = True #Ensure all cards are revealed when the deck is created
 
         random.shuffle(self.cards)
-        self.dealt_cards = 0
-        self.should_shuffle_after_hand = False
     
     def deal_card(self):
         """
@@ -101,21 +103,13 @@ class Deck:
         if not self.cards:
             raise ValueError("No cards left in the deck")
         
-        if self.dealt_cards >= 0.75 * len(self.cards):
+        if self.dealt_cards >= 0.75 * len(self.cards): #If you reach the cut card (usually 75% through the deck), shuffle after the hand
             print("Cut card reached! Shuffle after this hand.")
             self.should_shuffle_after_hand = True
         
         self.dealt_cards += 1
         
-        return self.cards.pop()    
-    
-    def should_shuffle(self):
-        """
-        Checks if the deck should be shuffled based on penetration level.
-        Returns:
-            bool: True if the deck should be shuffled, False otherwise.
-        """
-        return self.should_shuffle_after_hand
+        return self.cards.pop() #Extracts a card from the deck   
 
 class Hand:
     """
@@ -205,16 +199,16 @@ class Hand:
         """
         return len(self.cards) == 2 and self.cards[0].rank == self.cards[1].rank
     
-    def display_score_string(self, reveal_cards=True, standing=False):
+    def display_score_string(self, show_hidden_cards=True, standing=False):
         """
         Returns the score string for the hand.
         Args:
-            reveal_cards (bool): Whether to reveal the current score or not.
+            show_hidden_cards (bool): Whether to reveal the current score or not.
             standing (bool): Whether the player or dealer is standing.
         Returns:
             str: The formatted score string.
         """
-        if not reveal_cards:
+        if not show_hidden_cards:
             return "Hidden"
 
         if standing and self.is_soft() and not self.is_bust():
@@ -228,15 +222,15 @@ class Hand:
         else:
             return f"{hard_total}"
     
-    def get_deckstring(self, reveal_cards=True):
+    def get_deckstring(self, show_hidden_cards=True):
         """
         Returns a string listing the current cards in the hand.
         Args:
-            reveal_cards (bool): If False, hidden cards will be represented as '-'.
+            show_hidden_cards (bool): If False, hidden cards will be represented as '-'.
         """
         card_strings = []
         for card in self.cards:
-            if card.revealed or reveal_cards:
+            if card.revealed or show_hidden_cards:
                 card_strings.append(card.get_cardname())
             else:
                 card_strings.append("-")
