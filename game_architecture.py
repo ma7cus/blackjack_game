@@ -6,10 +6,10 @@ class Blackjack_Hand:
         self.deck = deck
         self.ui = ui
         self.dealer_card_set = Hand()  # Hand object to store dealer's cards
-        self.player_card_sets = [] #Start with an empty set of hands
-        self.player_card_sets.append(Hand())  # Initialise player set of hands with an initial hand object
-        self.player_hand_turn_over = [] #Track which of the player's hands' turns are over
-        self.player_hand_turn_over.append(False) #Set the initial player hand to not be over in its turn on initialisation
+        self.player_card_sets = [Hand()] #Start with an empty set of 1 hand
+
+        self.player_hand_turn_over = [False] #Track which of the player's hands' turns are over
+
         self.player_turn_over = False  # Track if the player's turn is over for all hands
         self.round_over = False #Track if the player and dealer turns are both over
 
@@ -17,11 +17,17 @@ class Blackjack_Hand:
         # Reset player and dealer hands using the reset method in Hand
         self.dealer_card_set.reset() #Reset the dealer's hand
         self.player_card_sets = [Hand()] #Reset any number of hands back to a standard 1 new hand object
-        self.player_hand_turn_over = []
-        self.player_hand_turn_over.append(False)
+        self.player_hand_turn_over = [False]
+
         self.player_turn_over = False
         self.round_over = False
 
+        self.ui.reset_player_windows()
+
+    def num_hands(self):
+        """Return the number of hands currently in play."""
+        return len(self.player_card_sets)
+    
     def update_card_set_values_in_ui(self):
         """ 
         Updates the player and dealer hand values in the UI.
@@ -41,14 +47,14 @@ class Blackjack_Hand:
         dealer_total_str = self.dealer_card_set.display_score_string(reveal_cards=dealer_revealed, standing=dealer_standing)
 
         # Update the UI with the formatted totals
-        self.ui.update_hand_values(player_totals_str_set, dealer_total_str, dealer_revealed)
+        self.ui.update_hand_values()
 
     def update_ui(self):
         # Update the UI to reflect the current hands
         for card_set in self.player_card_sets:
-            self.ui.update_player(card_set.cards)
+            self.ui.update_player()
 
-        self.ui.update_dealer(self.dealer_card_set.cards)
+        self.ui.update_dealer()
 
         # Also update the hand values in the UI
         self.update_card_set_values_in_ui()  
@@ -72,11 +78,15 @@ class Blackjack_Hand:
         cards_str = card_set.get_deckstring(reveal_cards=reveal_cards)
         total_str = card_set.display_score_string(reveal_cards=reveal_cards, standing=standing)
 
-        print(f"{owner}'s Hand: [{cards_str}] - Total: {total_str}")
+        if standing:
+            print(f"{owner}'s Hand: [{cards_str}] - Total: {total_str} (Standing)")
+        else:
+            print(f"{owner}'s Hand: [{cards_str}] - Total: {total_str}")
 
     def display_card_sets(self):
         for i, hand in enumerate(self.player_card_sets):
-                self.display_card_set(hand,f"Player Hand {i+1}")
+                standing = self.player_hand_turn_over[i]
+                self.display_card_set(hand,f"Player Hand {i+1}",standing=standing)
             
         self.display_card_set(self.dealer_card_set, "Dealer")
         print(" ")
@@ -89,7 +99,7 @@ class Blackjack_Hand:
         # Deal a new card to the player, always revealed
         new_card = self.deck.deal_card()
         new_card.revealed = True
-        self.player_card_sets[hand_index].add_card(new_card)
+        self.player_card_sets[hand_index].add_card(new_card)    
 
         if print_to_terminal:
             self.display_card_sets()
@@ -117,15 +127,20 @@ class Blackjack_Hand:
         self.update_ui()
 
     def deal_initial_hands(self):
-        # Deal two cards to the player
+        """Deal two cards to each player's hand and one to the dealer."""
         for i in range(2):
-            self.deal_card_to_player(print_to_terminal=False)
+            self.deal_card_to_player(0, print_to_terminal=False)
+
             if i == 1:
                 self.deal_card_to_dealer(revealed=False,print_to_terminal=True)
             else:
                 self.deal_card_to_dealer(revealed=True,print_to_terminal=False)
-        
-        self.ui.player_display.enable_buttons()
+
+        self.ui.update_player()
+        self.ui.update_dealer()
+
+        self.ui.player_displays[0].enable_buttons()
+
         
 
     def player_stands(self, hand_index = 0):
@@ -140,7 +155,29 @@ class Blackjack_Hand:
         if all(self.player_hand_turn_over):
             self.player_turn_over = True
             self.dealer_play()
-        
+    
+    def can_split(self, hand_index=0):
+        """Check if the specified hand can be split."""
+        return self.player_card_sets[hand_index].is_pair()
+
+    def split_hand(self, hand_index):
+        """Split the specified hand."""
+        if self.can_split(hand_index):
+            # Create a new hand for the second card
+            new_hand = Hand()
+            new_hand.add_card(self.player_card_sets[hand_index].cards.pop())
+            self.player_card_sets.append(new_hand)
+            self.player_hand_turn_over.append(False)
+
+            # Notify the UI to add a new window for the new hand
+            new_hand_index = len(self.player_card_sets) - 1
+            self.ui.add_player_window(new_hand_index)
+
+            # Update hand values for both hands
+            self.ui.player_displays[hand_index].update_hand_values(self.player_card_sets[hand_index].total(), self.dealer_card_set.total(), dealer_revealed=False)
+            self.ui.player_displays[new_hand_index].update_hand_values(new_hand.total(), self.dealer_card_set.total(), dealer_revealed=False)
+
+            print(f"Split performed on Hand {hand_index + 1}")     
 
     def check_bust(self, hand_index = 0):
         """
@@ -180,7 +217,7 @@ class Blackjack_Hand:
             for i, player_hand in enumerate(self.player_card_sets):
                 # Player's hand identifier for output
                 if i==0 and len(self.player_card_sets) == 1:
-                    hand_label = f"Player Hand"
+                    hand_label = "Player Hand"
                 else:
                     hand_label = f"Player Hand {i+1}"
 
@@ -271,4 +308,3 @@ class Blackjack_Game:
         # Start the first hand
         self.new_hand()
         self.ui.mainloop()
-
