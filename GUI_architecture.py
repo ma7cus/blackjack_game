@@ -497,4 +497,3 @@ class BlackjackUI:
         self.player_displays.append(player_window)
 
         self.center_windows()
-
