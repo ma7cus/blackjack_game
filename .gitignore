@@ -1,0 +1,23 @@
+# Exclude specific Python files
+GUI_architecture_old.py
+popup_architecture.py
+test.py
+test_2.py
+test_3.py
+
+# Exclude Python bytecode and cache directories
+__pycache__/
+*.pyc
+*.pyo
+
+# Exclude virtual environments
+env/
+venv/
+*.egg-info/
+
+# Exclude temporary and system files
+*.tmp
+*.bak
+*.swp
+.DS_Store
+Thumbs.db
