@@ -2,7 +2,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 from cairosvg import svg2png
 from io import BytesIO
-from config import CARD_IMAGES_PATH, CARD_BACK_IMAGE_PATH, CARD_WIDTH, CARD_HEIGHT, CARD_PADDING, BORDER_PADDING, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, WINDOW_PADDING
+from config import CARD_IMAGES_PATH, CARD_BACK_IMAGE_PATH, CARD_WIDTH, CARD_HEIGHT, CARD_PADDING, BORDER_PADDING, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, WINDOW_PADDING, BUTTON_ACTIVE_COLOUR, BUTTON_DISABLED_COLOUR, BUTTON_TEXT_COLOUR
 
 
 class CardsWindowBase:
@@ -110,6 +110,8 @@ class PlayerHandWindow(CardsWindowBase):
         self.stand_button = tk.Button(self.window, text="Stand", command=self.stand, font=("Arial", 20),width = 10,height=2)
         self.split_button = tk.Button(self.window, text="Split", command=self.split, font=("Arial", 20), width=10, height=2, state=tk.DISABLED)
 
+        self.enable_hit_stand_buttons()
+
         # Placeholders for card labels and game reference
         self.ui = None
 
@@ -190,7 +192,7 @@ class PlayerHandWindow(CardsWindowBase):
             
             #Check if the player's turn is over
             if self.ui.game.current_hand.player_hand_turn_over[self.hand_index]:
-                self.disable_buttons()
+                self.disable_hit_stand_buttons()
 
     def stand(self):
         """
@@ -203,7 +205,7 @@ class PlayerHandWindow(CardsWindowBase):
             
             #Disable buttons if the player's turn is over (it should be over by default but this is a safety check)
             if self.ui.game.current_hand.player_hand_turn_over[self.hand_index]:
-                self.disable_buttons()
+                self.disable_hit_stand_buttons()
     
     def update_hand_value_labels(self, player_total, dealer_total, dealer_revealed):
         """
@@ -222,23 +224,24 @@ class PlayerHandWindow(CardsWindowBase):
         else:
             self.dealer_hand_value_label.config(text=f"Dealer Hand: Hidden")
 
-    def disable_hit_stand_buttons(self):
-        """Disable the hit and stand buttons."""
-        self.hit_button.config(state=tk.DISABLED)
-        self.stand_button.config(state=tk.DISABLED)
-
     def enable_hit_stand_buttons(self):
-        """Enable the hit and stand buttons."""
-        self.hit_button.config(state=tk.NORMAL)
-        self.stand_button.config(state=tk.NORMAL)
+        """Enable the hit and stand buttons and update their visuals."""
+        self.hit_button.config(state=tk.NORMAL, bg=BUTTON_ACTIVE_COLOUR, fg=BUTTON_TEXT_COLOUR)
+        self.stand_button.config(state=tk.NORMAL, bg=BUTTON_ACTIVE_COLOUR, fg=BUTTON_TEXT_COLOUR)
+
+    def disable_hit_stand_buttons(self):
+        """Disable the hit and stand buttons and update their visuals."""
+        self.hit_button.config(state=tk.DISABLED, bg=BUTTON_DISABLED_COLOUR, fg=BUTTON_TEXT_COLOUR)
+        self.stand_button.config(state=tk.DISABLED, bg=BUTTON_DISABLED_COLOUR, fg=BUTTON_TEXT_COLOUR)
 
     def enable_split_button(self):
-        """Enable the split button."""
-        self.split_button.config(state=tk.NORMAL)
+        """Enable the split button and update its visuals."""
+        self.split_button.config(state=tk.NORMAL, bg=BUTTON_ACTIVE_COLOUR, fg=BUTTON_TEXT_COLOUR)
 
     def disable_split_button(self):
-        """Disable the split button."""
-        self.split_button.config(state=tk.DISABLED)
+        """Disable the split button and update its visuals."""
+        self.split_button.config(state=tk.DISABLED, bg=BUTTON_DISABLED_COLOUR, fg=BUTTON_TEXT_COLOUR)
+
 
     def split(self):
         """Perform a split on this hand."""
@@ -286,8 +289,8 @@ class ControlWindow:
         self.window.title(title)
 
         # Create 'New Game' and 'Quit' buttons
-        self.new_game_button = tk.Button(self.window, text="New Game", command=self.new_game, font=("Arial", 20), width=10)
-        self.quit_button = tk.Button(self.window, text="Quit", command=self.quit_game, font=("Arial", 20), width=10)
+        self.new_game_button = tk.Button(self.window, text="New Game", command=self.new_game, font=("Arial", 20), width=10, bg='green', fg='white')
+        self.quit_button = tk.Button(self.window, text="Quit", command=self.quit_game, font=("Arial", 20), width=10,bg='red', fg='white')
 
         # Calculate button height and define padding
         button_padding = 20  # Padding around buttons in pixels
